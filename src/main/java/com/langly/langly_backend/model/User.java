@@ -1,4 +1,4 @@
-package model;
+package com.langly.langly_backend.model;
 
 import jakarta.persistence.*;
 

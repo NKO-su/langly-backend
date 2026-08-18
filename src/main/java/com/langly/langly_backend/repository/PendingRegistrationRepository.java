@@ -1,6 +1,6 @@
-package repository;
+package com.langly.langly_backend.repository;
 
-import model.PendingRegistration;
+import com.langly.langly_backend.model.PendingRegistration;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

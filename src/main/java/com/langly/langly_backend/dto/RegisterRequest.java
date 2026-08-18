@@ -1,4 +1,4 @@
-package dto;
+package com.langly.langly_backend.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
