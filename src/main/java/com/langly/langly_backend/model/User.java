@@ -41,13 +41,11 @@ public class User {
     private LocalDateTime createdAt;
 
     protected User(){}
-    public User(Long id, String email, String password, AuthProvider provider, String providerId, LocalDateTime createdAt) {
-        this.id = id;
+    public User(String email, String password, AuthProvider provider) {
         this.email = email;
         this.password = password;
         this.provider = provider;
-        this.providerId = providerId;
-        this.createdAt = createdAt;
+        this.createdAt = LocalDateTime.now();
     }
 
     public Long getId() {
