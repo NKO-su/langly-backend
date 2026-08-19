@@ -18,14 +18,13 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final PendingRegistrationRepository pendingRegistrationRepository;
-    private final TokenGenerator tokenGenerator;
     private final EmailService emailService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, PendingRegistrationRepository pendingRegistrationRepository, TokenGenerator tokenGenerator, EmailService emailService) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
+                       PendingRegistrationRepository pendingRegistrationRepository,EmailService emailService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.pendingRegistrationRepository = pendingRegistrationRepository;
-        this.tokenGenerator = tokenGenerator;
         this.emailService = emailService;
     }
 
@@ -44,7 +43,7 @@ public class AuthService {
         }
 
         String hashedPassword = passwordEncoder.encode(rawPassword);
-        String token = tokenGenerator.generateToken();
+        String token = TokenGenerator.generateToken();
         PendingRegistration newPending = new PendingRegistration(email, hashedPassword, token);
         pendingRegistrationRepository.save(newPending);
 
@@ -77,7 +76,7 @@ public class AuthService {
             throw new IllegalStateException("Đã đạt giới hạn gửi lại, vui lòng đăng ký lại sau.");
         }
 
-        String newToken = tokenGenerator.generateToken();
+        String newToken = TokenGenerator.generateToken();
         pending.regenerateToken(newToken);
         pendingRegistrationRepository.save(pending);
 
