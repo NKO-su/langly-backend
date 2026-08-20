@@ -4,17 +4,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/**
- * Note
- *
- * - Tách riêng khỏi User entity vì client chỉ được phép gửi email + password
- *   → không cho client tự set provider, providerId, id... (tránh giả mạo dữ liệu)
- *
- * - Các annotation @NotBlank, @Email, @Size là validation, tự động chạy
- *   TRƯỚC KHI vào tới Controller, nếu sai sẽ tự trả lỗi 400 Bad Request
- *   (cần thêm @Valid ở tham số Controller mới kích hoạt — sẽ làm ở bước Controller)
- */
-public class RegisterRequest {
+public class LoginRequest {
     @NotBlank(message = "Email không được để trống")
     @Email(message = "Email không đúng định dạng")
     private String email;
@@ -23,8 +13,7 @@ public class RegisterRequest {
     @Size(min = 8, message = "Password phải có ít nhất 8 ký tự")
     private String password;
 
-    public  RegisterRequest(){
-
+    public LoginRequest() {
     }
 
     public String getEmail() {
