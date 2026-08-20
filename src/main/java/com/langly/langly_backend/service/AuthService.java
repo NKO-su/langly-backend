@@ -129,4 +129,19 @@ public class AuthService {
         return new AuthResponse(accessToken,refreshtoken);
     }
 
+    public AuthResponse refreshAccessToken(String refreshTokenValue) {
+        RefreshToken refreshToken = refreshTokenRepository.findByToken(refreshTokenValue)
+                .orElseThrow(() -> new IllegalStateException("Refresh token không hợp lệ."));
+
+        if (refreshToken.isExpired()) {
+            refreshTokenRepository.delete(refreshToken);
+            throw new IllegalStateException("Refresh token đã hết hạn, vui lòng đăng nhập lại.");
+        }
+
+        User user = refreshToken.getUser();
+        String newAccessToken = jwtUtil.generateAccessToken(user.getEmail());
+
+        return new AuthResponse(newAccessToken, refreshTokenValue);
+    }
+
 }
