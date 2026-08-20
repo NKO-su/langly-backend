@@ -1,15 +1,20 @@
 package com.langly.langly_backend.service;
 
+import com.langly.langly_backend.dto.AuthResponse;
 import com.langly.langly_backend.exception.EmailAlreadyExistsException;
 import com.langly.langly_backend.model.AuthProvider;
 import com.langly.langly_backend.model.PendingRegistration;
+import com.langly.langly_backend.model.RefreshToken;
 import com.langly.langly_backend.model.User;
 import com.langly.langly_backend.repository.PendingRegistrationRepository;
+import com.langly.langly_backend.repository.RefreshTokenRepository;
 import com.langly.langly_backend.repository.UserRepository;
+import com.langly.langly_backend.util.JwtUtil;
 import com.langly.langly_backend.util.TokenGenerator;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
@@ -19,13 +24,18 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final PendingRegistrationRepository pendingRegistrationRepository;
     private final EmailService emailService;
+    private final JwtUtil jwtUtil;
+
+    private final RefreshTokenRepository refreshTokenRepository;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                       PendingRegistrationRepository pendingRegistrationRepository,EmailService emailService) {
+                       PendingRegistrationRepository pendingRegistrationRepository, EmailService emailService, JwtUtil jwtUtil, RefreshTokenRepository refreshTokenRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.pendingRegistrationRepository = pendingRegistrationRepository;
         this.emailService = emailService;
+        this.jwtUtil = jwtUtil;
+        this.refreshTokenRepository = refreshTokenRepository;
     }
 
     public void register(String email, String rawPassword) {
@@ -97,4 +107,26 @@ public class AuthService {
 
         pendingRegistrationRepository.delete(pending);
     }
+
+    public AuthResponse login(String email, String rawPassword){
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(()-> new IllegalStateException("Email hoặc Password không hơp lệ."));
+
+        if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
+            throw new IllegalStateException("Email hoặc Password không hơp lệ.");
+        }
+
+        String accessToken = jwtUtil.generateAccessToken(user.getEmail());
+        String refreshtoken= jwtUtil.generateRefreshTokenValue(user.getEmail());
+
+        LocalDateTime refreshTokenExpiresAt = LocalDateTime.now()
+                .plusSeconds(jwtUtil.getRefreshTokenExpiration() / 1000);
+
+        RefreshToken newRefreshToken = new RefreshToken(refreshtoken,user,refreshTokenExpiresAt);
+        refreshTokenRepository.save(newRefreshToken);
+
+
+        return new AuthResponse(accessToken,refreshtoken);
+    }
+
 }

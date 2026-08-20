@@ -34,7 +34,9 @@ public class JwtUtil {
         this.accessTokenExpirationMs = accessTokenExpirationMs;
         this.refreshTokenExpirationMs = refreshTokenExpirationMs;
     }
-
+    public long getRefreshTokenExpiration() {
+        return refreshTokenExpirationMs;
+    }
     public String generateAccessToken(String email) {
         return generateToken(email, accessTokenExpirationMs);
     }
