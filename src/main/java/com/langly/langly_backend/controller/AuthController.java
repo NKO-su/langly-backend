@@ -1,5 +1,8 @@
 package com.langly.langly_backend.controller;
 
+import com.langly.langly_backend.dto.AuthResponse;
+import com.langly.langly_backend.dto.LoginRequest;
+import com.langly.langly_backend.dto.RefreshTokenRequest;
 import com.langly.langly_backend.dto.RegisterRequest;
 import com.langly.langly_backend.service.AuthService;
 import jakarta.validation.Valid;
@@ -32,5 +35,17 @@ public class AuthController {
     public ResponseEntity<String> resend(@RequestParam String email) {
         authService.resendVerification(email);
         return ResponseEntity.ok("Đã gửi lại email xác nhận.");
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        AuthResponse response = authService.login(request.getEmail(), request.getPassword());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        AuthResponse response = authService.refreshAccessToken(request.getRefreshToken());
+        return ResponseEntity.ok(response);
     }
 }
