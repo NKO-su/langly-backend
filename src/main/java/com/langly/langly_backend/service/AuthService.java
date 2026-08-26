@@ -144,4 +144,31 @@ public class AuthService {
         return new AuthResponse(newAccessToken, refreshTokenValue);
     }
 
+    public AuthResponse oauth2Login(String email){
+        Optional<User> googleUser = userRepository.findByEmail(email);
+
+        User user;
+
+        if (googleUser.isEmpty()) {
+            user = new User(email,null, AuthProvider.GOOGLE);
+            userRepository.save(user);
+        } else {
+            user = googleUser.get();
+            if (user.getProvider() == AuthProvider.LOCAL) {
+                user.setProvider(AuthProvider.LINKED);
+                userRepository.save(user);
+            }
+        }
+
+        String accessToken = jwtUtil.generateAccessToken(user.getEmail());
+        String refreshtoken= jwtUtil.generateRefreshTokenValue(user.getEmail());
+
+        LocalDateTime refreshTokenExpiresAt = LocalDateTime.now()
+                .plusSeconds(jwtUtil.getRefreshTokenExpiration() / 1000);
+
+        RefreshToken newRefreshToken = new RefreshToken(refreshtoken,user,refreshTokenExpiresAt);
+        refreshTokenRepository.save(newRefreshToken);
+
+        return new AuthResponse(accessToken,refreshtoken);
+    }
 }
