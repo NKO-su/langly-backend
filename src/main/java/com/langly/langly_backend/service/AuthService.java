@@ -38,6 +38,18 @@ public class AuthService {
         this.refreshTokenRepository = refreshTokenRepository;
     }
 
+    /**
+     * Note register
+     *
+     * 1. Kiểm tra Email đã tồn tại trong data chưa
+     * 2. Kiểm tra Email có đang trong tình trạng chờ xác thực không.
+     * -  Nếu có        -> thông báo
+     * -  Nếu không     -> Xóa Record
+     * 3. Bắt đầu hash Password
+     * 4. Tạo token
+     * 5. Tạo mới record tạm
+     * 6. gửi mail xác nhận
+     */
     public void register(String email, String rawPassword) {
         if (userRepository.existsByEmail(email)) {
             throw new EmailAlreadyExistsException("Email đã được đăng ký.");
@@ -46,7 +58,7 @@ public class AuthService {
         Optional<PendingRegistration> existing = pendingRegistrationRepository.findByEmail(email);
         if (existing.isPresent()) {
             PendingRegistration pending = existing.get();
-            if (!pending.isExpired()) {
+            if (!pending.isExpired()) {                 //.isExpired()  : Het han
                 throw new IllegalStateException("Email này đang chờ xác nhận, vui lòng kiểm tra hộp thư.");
             }
             pendingRegistrationRepository.delete(pending);
@@ -59,17 +71,13 @@ public class AuthService {
 
         emailService.sendVerificationEmail(email, token);
     }
+
     /**
-     * Note register
+     * Note resendVerification
+     * - Kiểm tra email có tồn tại trong pendingRegistrationRepository
      *
-     * 1. Kiểm tra Email đã tồn tại trong data chưa
-     * 2. Kiểm tra Email có đang trong tình trạng chờ xác thực không.
-     * -  Nếu có        -> thông báo
-     * -  Nếu không     -> Xóa Record
-     * 3. Bắt đầu hash Password
-     * 4. Tạo token
-     * 5. Tạo mới record tạm
-     * 6. gửi mail xác nhận
+     *  Kiểm tra Expired,isInCooldown,hasReachedResendLimit của email
+     *
      */
 
     public void resendVerification(String email) {
@@ -92,7 +100,16 @@ public class AuthService {
 
         emailService.sendVerificationEmail(email, newToken);
     }
-    
+
+    /**
+     * verifyEmail Note
+     *
+     * - Lấy user có token trùng
+     * - Kiểm tra hạn token
+     * - Nếu hết hạn - xóa khỏi DB
+     * - Nếu không, tạo user mới - dữ liệu lấy từ pendingRegistration
+     * - xóa pendingRegistration khi tọa xong
+     */
     public void verifyEmail(String token) {
         PendingRegistration pending = pendingRegistrationRepository.findByToken(token)
                 .orElseThrow(() -> new IllegalStateException("Token không hợp lệ."));

@@ -54,6 +54,13 @@ public class PendingRegistration {
         this.lastSentAt = LocalDateTime.now();
     }
 
+    public void regenerateToken(String newToken) {
+        this.token = newToken;
+        this.expiresAt = LocalDateTime.now().plusMinutes(30);
+        this.resendCount++;
+        this.lastSentAt = LocalDateTime.now();
+    }
+
     public Long getId() {
         return id;
     }
@@ -105,11 +112,6 @@ public class PendingRegistration {
      * thời điểm gửi gần nhất - gộp chung thành 1 hành động duy nhất,
      * tránh Service gọi rời rạc dễ quên 1 bước (ví dụ quên tăng resendCount).
      */
-    public void regenerateToken(String newToken) {
-        this.token = newToken;
-        this.expiresAt = LocalDateTime.now().plusMinutes(30);
-        this.resendCount++;
-        this.lastSentAt = LocalDateTime.now();
-    }
+
 }
 
