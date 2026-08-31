@@ -1,7 +1,7 @@
 # Langly Backend — Authentication Module (Tuần 1)
 
 Module xử lý đăng ký (local, kèm xác nhận email thật) và đăng nhập
-(JWT access token + refresh token) cho ứng dụng Langly.
+(JWT access token + refresh token) và đăng nhập bằng Google (OAuth2) cho ứng dụng Langly.
 
 ## Tech stack liên quan
 
@@ -10,6 +10,7 @@ Module xử lý đăng ký (local, kèm xác nhận email thật) và đăng nh�
 - BCrypt (`PasswordEncoder`) — hash password
 - JWT (`io.jsonwebtoken`) — access token + refresh token
 - Gmail SMTP (`spring-boot-starter-mail`) — gửi email xác nhận thật
+- **Spring Security OAuth2 Client (`spring-boot-starter-oauth2-client`) — Google Login** *( week 2)*
 
 ## Tính năng
 
@@ -43,6 +44,27 @@ nhận email qua link được gửi tới hộp thư thật.
    hợp lệ trong header `Authorization: Bearer <token>`, được kiểm tra
    bởi `JwtAuthenticationFilter`
 
+### Đăng nhập bằng Google (OAuth2 Login) — *new, week 2*
+
+Google xác thực danh tính user thay hệ thống; backend chỉ nhận email
+đã được xác thực và quyết định gắn vào `User` nào.
+
+1. Client gọi `GET /oauth2/authorization/google` (endpoint do
+   `spring-boot-starter-oauth2-client` tự sinh, không tự viết Controller)
+2. Redirect sang Google → user đăng nhập & đồng ý quyền (`email`, `profile`)
+3. Google redirect về `GET /login/oauth2/code/google` (cũng tự sinh)
+4. `OAuth2SuccessHandler.onAuthenticationSuccess()` được Spring gọi lại,
+   lấy `email` từ `OAuth2User`, gọi `AuthService.oauth2Login(email)`
+5. `AuthService` rẽ 3 nhánh theo `email`:
+    - Chưa có `User` → tạo mới, `provider = GOOGLE`
+    - Có, đang `LOCAL` → tự động đổi `provider = LINKED` (không cần xác
+      nhận password local)
+    - Có, đã `GOOGLE`/`LINKED` → dùng luôn, không tạo/sửa gì
+6. Sinh access + refresh token (dùng lại nguyên `JwtUtil` của local login)
+7. `OAuth2SuccessHandler` tự ghi `AuthResponse` (JSON) trực tiếp vào
+   `HttpServletResponse` — vì `onAuthenticationSuccess()` trả `void`,
+   không có cơ chế `return` tự serialize như Controller
+
 ## Cấu trúc thư mục liên quan
 
 ```
@@ -61,12 +83,14 @@ com.langly.langly_backend
 │   └── JwtUtil.java                   (@Component, sinh/verify JWT)
 ├── service/
 │   ├── EmailService.java
-│   └── AuthService.java
+│   └── AuthService.java               (register/login/refresh + oauth2Login )
 ├── controller/
 │   └── AuthController.java
 ├── config/
 │   ├── SecurityConfig.java
-│   └── JwtAuthenticationFilter.java
+│   ├── PasswordEncoderConfig.java      
+│   ├── JwtAuthenticationFilter.java
+│   └── OAuth2SuccessHandler.java
 ├── dto/
 │   ├── RegisterRequest.java / LoginRequest.java / RefreshTokenRequest.java
 │   └── AuthResponse.java
@@ -79,11 +103,13 @@ com.langly.langly_backend
 Đặt các biến sau qua environment variables (không hard-code vào
 `application.properties`):
 
-| Biến | Mô tả |
-|---|---|
-| `MAIL_USERNAME` | Địa chỉ Gmail dùng để gửi mail xác nhận |
-| `MAIL_PASSWORD` | Gmail App Password (không phải mật khẩu Gmail thật) |
+| Biến | Mô tả                                                  |
+|---|--------------------------------------------------------|
+| `MAIL_USERNAME` | Địa chỉ Gmail dùng để gửi mail xác nhận                |
+| `MAIL_PASSWORD` | Gmail App Password (không phải mật khẩu Gmail thật)    |
 | `JWT_SECRET` | Secret key ký JWT (chuỗi ngẫu nhiên ≥ 256-bit, Base64) |
+| `GOOGLE_CLIENT_ID` | Client ID từ Google Cloud Console *(new)*              |
+| `GOOGLE_CLIENT_SECRET` | Client Secret từ Google Cloud Console *(new)*          |
 
 ## Ghi chú thiết kế đáng nhớ
 
