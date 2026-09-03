@@ -188,4 +188,11 @@ public class AuthService {
 
         return new AuthResponse(accessToken,refreshtoken);
     }
+
+    public void logout(String refreshTokenValue) {
+        Optional<RefreshToken> refreshToken = refreshTokenRepository.findByToken(refreshTokenValue);
+        if (refreshToken.isPresent()) {
+            refreshTokenRepository.delete(refreshToken.get());
+        }
+    }
 }
