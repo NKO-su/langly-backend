@@ -5,6 +5,7 @@ import com.langly.langly_backend.dto.LoginRequest;
 import com.langly.langly_backend.dto.RefreshTokenRequest;
 import com.langly.langly_backend.dto.RegisterRequest;
 import com.langly.langly_backend.service.AuthService;
+import com.nimbusds.openid.connect.sdk.LogoutRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -47,5 +48,11 @@ public class AuthController {
     public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
         AuthResponse response = authService.refreshAccessToken(request.getRefreshToken());
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {
+        authService.logout(request.getRefreshToken());
+        return ResponseEntity.noContent().build();
     }
 }
