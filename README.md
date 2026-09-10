@@ -11,7 +11,7 @@ Module xử lý đăng ký (local, kèm xác nhận email thật) và đăng nh�
 - JWT (`io.jsonwebtoken`) — access token + refresh token
 - Gmail SMTP (`spring-boot-starter-mail`) — gửi email xác nhận thật
 - **Spring Security OAuth2 Client (`spring-boot-starter-oauth2-client`) — Google Login** *( week 2)*
-
+- **Rome Library (`com.rometools:rome`) — parse RSS feed** *( week 3)*
 ## Tính năng
 
 ### Đăng ký (Local Register + Email Verification)
@@ -65,6 +65,86 @@ Google xác thực danh tính user thay hệ thống; backend chỉ nhận email
    `HttpServletResponse` — vì `onAuthenticationSuccess()` trả `void`,
    không có cơ chế `return` tự serialize như Controller
 
+### Đăng xuất (Logout) 
+
+Vô hiệu hóa refresh token phía server, để nếu token bị lộ thì không
+thể dùng để xin access token mới nữa.
+
+1. `POST /api/auth/logout` — nhận `refreshToken` (dùng lại
+   `RefreshTokenRequest`, không tạo DTO riêng)
+2. Tìm row `RefreshToken` theo giá trị token; nếu có thì xóa, nếu
+   không có thì bỏ qua — **idempotent**, gọi bao nhiêu lần cũng trả
+   về thành công, không throw lỗi
+3. Trả về `204 No Content`
+4. Không cần sửa `SecurityConfig` — endpoint rơi vào nhóm
+   `/api/auth/**` đã `permitAll()` sẵn, vì bản thân refresh token
+   (chuỗi ngẫu nhiên 256-bit) đã là bằng chứng sở hữu đủ mạnh
+5. Không làm access-token blacklist — access token ngắn hạn (1h),
+   chưa có kịch bản cụ thể cần thu hồi ngay lập tức ở quy mô hiện
+   tại (ghi nhận Technical Debt nếu cần sau)
+
+### Bài báo & Lưu bài (Article / SavedArticle) — *(week 3)*
+
+`Article` là dữ liệu **dùng chung** cho mọi user (không gắn `User`
+trực tiếp). Việc "lưu" một bài được tách thành entity trung gian
+riêng (`SavedArticle`), đại diện cho quan hệ nhiều-nhiều
+`User` ↔ `Article`.
+
+- `Article`: `id`, `title`, `description` (TEXT), `link` (unique),
+  `pubDate`, `source`, `createdAt` (`@CreationTimestamp`)
+- `SavedArticle`: `id`, `user` (`@ManyToOne`), `article`
+  (`@ManyToOne`), `savedAt` (`@CreationTimestamp`);
+  `@UniqueConstraint({user_id, article_id})` chống lưu trùng
+  `POST /api/saved-articles/toggle` — 1 endpoint duy nhất (toggle) cho
+  cả lưu và bỏ lưu:
+1. Nhận `articleId` (body), xác định `user` qua JWT
+   (`Authentication.getName()`, không nhận `userId` từ client)
+2. `findByUserAndArticle(user, article)` — có thì xóa (unsave, trả
+   `saved: false`), không có thì tạo mới (save, trả `saved: true`)
+3. Check tồn tại **trước khi** insert (không insert-rồi-bắt-lỗi)
+
+### Lấy bài từ RSS & lưu tự động (RssFeedService / RssFetchScheduler) — *(week 3)*
+
+- `RssFeedService.fetchAndSave(feedUrl, sourceName)` — đọc **1 feed
+  bất kỳ** qua Rome Library (`SyndFeedInput` + `XmlReader`), không
+  biết/không quan tâm đang đọc nguồn nào (nhận qua tham số):
+   1. Lọc theo `pubDate` — chỉ lấy bài trong vòng **48 giờ gần đây**
+      (loại các mục không phải tin thời sự như app-promo, chương
+      trình cũ, phát hiện được từ dữ liệu RSS thật của BBC)
+   2. `existsByLink()` — chống trùng trước khi insert (kể cả khi 1
+      bài xuất hiện 2 lần trong cùng 1 response XML)
+   3. Map `SyndEntry` → `Article` (`Date` → `LocalDateTime` qua
+      `toInstant().atZone(ZoneId.systemDefault())`;
+      `entry.getDescription().getValue()` để lấy text thật, có
+      check null)
+   4. Toàn bộ bọc `try/catch` — 1 feed lỗi không làm hỏng các nguồn
+      khác
+- `RssFetchScheduler` (package riêng `scheduler`) — giữ
+  `Map<tên nguồn, URL feed>`, `@Scheduled(fixedRateString =
+  "${rss.fetch.interval}")` chạy mỗi **6 giờ** (đọc từ
+  `application.properties`, không hard-code), lặp gọi
+  `RssFeedService` cho từng nguồn
+- Bắt buộc thêm `@EnableScheduling` ở class `@SpringBootApplication`,
+  nếu không mọi `@Scheduled` bị Spring ngó lơ hoàn toàn
+
+### Danh sách bài báo (GET /api/articles) *(week 3)*
+
+Dùng **cursor-based pagination** (không dùng trang số/`Pageable`
+đơn giản) — chọn có chủ đích để phù hợp UX infinite-scroll, chấp
+nhận tốn công hơn để tự viết logic.
+
+1. `GET /api/articles?cursor=&size=` — `cursor` và `size` đều là
+   tham số tùy chọn (`size` mặc định 10)
+2. `cursor` = `id` của bài **cuối cùng** đã nhận ở lần gọi trước;
+   không gửi (lần đầu) → Service dùng `Long.MAX_VALUE` nội bộ, coi
+   như "lấy từ bài mới nhất"
+3. Repository: `findByIdLessThanOrderByIdDesc(cursor, Pageable)` —
+   `Pageable` chỉ dùng để giới hạn `size`, vị trí bắt đầu do điều
+   kiện `WHERE id < cursor` quyết định (không phải offset)
+4. Response (`ArticlePageResponse`): `articles`, `nextCursor` (id
+   bài cuối lô, để gọi tiếp), `hasMore` (suy luận từ việc số bài trả
+   về có bằng đúng `size` hay không, không cần query đếm riêng)
+
 ## Cấu trúc thư mục liên quan
 
 ```
@@ -73,19 +153,30 @@ com.langly.langly_backend
 │   ├── User.java
 │   ├── AuthProvider.java              (LOCAL / GOOGLE / LINKED)
 │   ├── PendingRegistration.java
-│   └── RefreshToken.java
+│   ├── RefreshToken.java
+│   ├── Article.java                   (mới)
+│   └── SavedArticle.java              (mới)
 ├── repository/
 │   ├── UserRepository.java
 │   ├── PendingRegistrationRepository.java
-│   └── RefreshTokenRepository.java
+│   ├── RefreshTokenRepository.java
+│   ├── ArticleRepository.java         (mới)
+│   └── SavedArticleRepository.java    (mới)
 ├── util/
 │   ├── TokenGenerator.java            (static, SecureRandom)
 │   └── JwtUtil.java                   (@Component, sinh/verify JWT)
 ├── service/
 │   ├── EmailService.java
-│   └── AuthService.java               (register/login/refresh + oauth2Login )
+│   ├── AuthService.java               (register/login/refresh/logout + oauth2Login)
+│   ├── SavedArticleService.java       (mới — toggle save/unsave)
+│   ├── RssFeedService.java            (mới — đọc/parse/lọc/lưu 1 feed)
+│   └── ArticleService.java            (mới — cursor pagination)
+├── scheduler/                         (package mới)
+│   └── RssFetchScheduler.java         (@Scheduled, mỗi 6h)
 ├── controller/
-│   └── AuthController.java
+│   ├── AuthController.java            (+ logout)
+│   ├── SavedArticleController.java    (mới)
+│   └── ArticleController.java         (mới)
 ├── config/
 │   ├── SecurityConfig.java
 │   ├── PasswordEncoderConfig.java      
@@ -93,7 +184,9 @@ com.langly.langly_backend
 │   └── OAuth2SuccessHandler.java
 ├── dto/
 │   ├── RegisterRequest.java / LoginRequest.java / RefreshTokenRequest.java
-│   └── AuthResponse.java
+│   ├── AuthResponse.java
+│   ├── ToggleSaveRequest.java / SavedStatusResponse.java     (mới)
+│   └── ArticlePageResponse.java                              (mới)
 └── exception/
     └── EmailAlreadyExistsException.java
 ```
@@ -108,8 +201,14 @@ com.langly.langly_backend
 | `MAIL_USERNAME` | Địa chỉ Gmail dùng để gửi mail xác nhận                |
 | `MAIL_PASSWORD` | Gmail App Password (không phải mật khẩu Gmail thật)    |
 | `JWT_SECRET` | Secret key ký JWT (chuỗi ngẫu nhiên ≥ 256-bit, Base64) |
-| `GOOGLE_CLIENT_ID` | Client ID từ Google Cloud Console *(new)*              |
-| `GOOGLE_CLIENT_SECRET` | Client Secret từ Google Cloud Console *(new)*          |
+| `GOOGLE_CLIENT_ID` | Client ID từ Google Cloud Console                      |
+| `GOOGLE_CLIENT_SECRET` | Client Secret từ Google Cloud Console                  |
+
+Cấu hình thường (không phải secret, đặt trong `application.properties`):
+
+| Key | Mô tả | Giá trị hiện tại |
+|---|---|---|
+| `rss.fetch.interval` | Chu kỳ `RssFetchScheduler` chạy (ms) | `21600000` (6 giờ) |
 
 ## Ghi chú thiết kế đáng nhớ
 
@@ -120,4 +219,11 @@ com.langly.langly_backend
 - `AuthProvider` đã có sẵn `LINKED` để chuẩn bị cho Google OAuth2
   (Tuần 2): nếu Google trả về email trùng với tài khoản LOCAL đã có,
   hệ thống tự động hợp nhất 2 tài khoản.
+- `Article` là dữ liệu dùng chung, không copy sang `SavedArticle` —
+  `SavedArticle` chỉ giữ tham chiếu (`@ManyToOne`) nhẹ. Đã cân nhắc
+  và loại bỏ phương án copy dữ liệu hoặc lưu bookmark phía client vì
+  đi ngược mục tiêu đồng bộ đa thiết bị của hệ thống Auth.
+- `RssFeedService` và `RssFetchScheduler` tách 2 class riêng (Single
+  Responsibility) — Service không biết "khi nào/nguồn nào", chỉ biết
+  "đọc 1 URL bất kỳ"; Scheduler giữ danh sách nguồn + lịch chạy.
 
