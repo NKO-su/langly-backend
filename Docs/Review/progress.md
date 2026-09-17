@@ -132,8 +132,8 @@
 
 #### Spring Security Authentication
 
-* Explain: ✓
-* Reason: ✓
+* Explain: 
+* Reason: 
 * Rebuild: chưa kiểm tra
 * Design: đang hoàn thiện
 
@@ -154,3 +154,6 @@
 → `SecurityContext`
 → lấy current user
 → protected API
+
+
+✓
