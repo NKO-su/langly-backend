@@ -21,7 +21,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<String> register( @Valid @RequestBody RegisterRequest request ) {
         authService.register(request.getEmail(), request.getPassword());
         return ResponseEntity.ok("Đăng ký thành công, vui lòng kiểm tra email để xác nhận.");
     }

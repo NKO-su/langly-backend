@@ -5,14 +5,6 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
-/**
- * Note
- *
- * - JavaMailSender           : interface có sẵn của Spring, tự động cấu hình
- * dựa theo spring.mail.* trong application.properties. Không cần
- * tự viết code kết nối SMTP thủ công.
- *
- */
 @Service
 public class EmailService {
 
