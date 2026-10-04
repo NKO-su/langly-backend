@@ -20,6 +20,7 @@ public class RssFetchScheduler {
     }
 
     @Scheduled(fixedRateString = "${rss.fetch.interval}")
+
     public void fetchAllFeeds() {
         for (Map.Entry<String, String> entry : feedSources.entrySet()) {
             String sourceName = entry.getKey();

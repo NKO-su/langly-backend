@@ -19,7 +19,7 @@ public class ArticleService {
     }
 
     public ArticlePageResponse getArticles(Long cursor, int size) {
-        Long effectiveCursor = (cursor != null) ? cursor : Long.MAX_VALUE;
+        Long effectiveCursor = (cursor != null) ? cursor : Long.MAX_VALUE;  // nếu không có cursor thì lấy Id lớn nhất, tức bài báo mới nhất
         Pageable limit = PageRequest.of(0, size);
 
         List<Article> articles = articleRepository

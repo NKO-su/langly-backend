@@ -9,17 +9,6 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.util.Date;
 
-/**
- * JwtUtil Note
- *
- * - @Component                             :class này cần
- *   đọc @Value từ application.properties (secret key, thời hạn token) -
- *   những giá trị này chỉ có được SAU KHI Spring khởi động và inject vào,
- *   không thể truy cập được nếu để static.
- *
- * - Keys.hmacShaKeyFor(secret.getBytes())  :chuyển chuỗi secret thành đối tượng SecretKey
- */
-
 @Component
 public class JwtUtil {
 

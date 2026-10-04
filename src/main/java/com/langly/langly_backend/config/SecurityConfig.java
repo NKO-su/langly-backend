@@ -13,14 +13,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-    /**
-     * Note
-     * @Configuration               :báo Spring đây là class chứa các @Bean cần quản lý
-     * @EnableWebSecurity: bật cơ chế bảo mật tùy chỉnh, thay cho cấu hình
-     * mặc định của Spring Security (mặc định sẽ khóa TẤT CẢ endpoint và
-     * sinh 1 password ngẫu nhiên - chính là dòng log WARN bạn từng thấy)
-     */
-
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
